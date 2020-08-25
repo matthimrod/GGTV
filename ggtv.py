@@ -86,7 +86,7 @@ def main():
                         required=True)
     args = parser.parse_args()
 
-    dirname = args.directory
+    dirname = os.path.join(args.directory, '')
     receiver = args.receiver
 
     ip = findHostname()
