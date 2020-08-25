@@ -16,7 +16,7 @@ def createBaseUrl(ip, port):
     return 'http://' + ip + ':' + str(port) + '/'
 
 def createUrl(baseurl, dirname, video):
-    baseurl + urllib.parse.quote(video[len(dirname):], safe='/')
+    return baseurl + urllib.parse.quote(video[len(dirname):], safe='/')
 
 def findChromecast(receiver):
     print('Searching for chromecast:', receiver)
