@@ -11,4 +11,5 @@ optional arguments:
                         Specifies the directory to stream. Default is the current directory.
   -r RECEIVER, --receiver RECEIVER
                         Specifies the Chromecast receiver. (required)
+  --forever             Continuously loop, re-searching for the Chromecast if it disappears.
 ```
