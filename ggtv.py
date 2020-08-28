@@ -84,10 +84,14 @@ def main():
     parser.add_argument('-r', '--receiver', 
                         help='Specifies the Chromecast receiver. (required)', 
                         required=True)
+    parser.add_argument('--forever', 
+                        help='Continuously loop, re-searching for the Chromecast if it disappears.',
+                        action='store_true')
     args = parser.parse_args()
 
     dirname = os.path.join(args.directory, '')
     receiver = args.receiver
+    forever = args.forever
 
     ip = findHostname()
     port = findFreePort()
@@ -98,26 +102,32 @@ def main():
                               daemon=True, 
                               args=(dirname, port))
     daemon.start()
+    
+    while True:
+        cast = findChromecast(receiver)
+        if cast is not None:
+            cast.wait()
+            print("Using Chromecast:", cast.device.friendly_name)
 
-    cast = findChromecast(receiver)
-    if cast is not None:
-        cast.wait()
-        print("Using Chromecast:", cast.device.friendly_name)
+            while True:
+                listOfFiles = getListOfFiles(dirname)
 
-        while True:
-            listOfFiles = getListOfFiles(dirname)
+                if len(listOfFiles) == 0:
+                    print('No files to stream.')
+                    break
 
-            if len(listOfFiles) == 0:
-                print('No files to stream.')
-                break
+                for video in listOfFiles:
+                    print("Starting:", video)
+                    url = createUrl(baseurl, dirname, video)
 
-            for video in listOfFiles:
-                print("Starting:", video)
-                url = createUrl(baseurl, dirname, video)
+                    playVideo(cast, url)
+        else:
+            print('Could not find chromecast', receiver)
 
-                playVideo(cast, url)
-    else:
-        print('Could not find chromecast', receiver)
+        if forever:
+            time.sleep(15)
+        else:
+            break
 
 if __name__ == '__main__':
     main()
