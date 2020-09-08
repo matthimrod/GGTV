@@ -10,6 +10,7 @@ import threading
 import time
 import urllib.parse
 import socket
+import datetime
 from contextlib import closing
 
 def createBaseUrl(ip, port):
@@ -62,7 +63,7 @@ def playVideo(cast, url):
     cast.media_controller.block_until_active(15)
     cast.media_controller.update_status()
     print('Playing', cast.media_controller.status.content_id,
-            ' (', cast.media_controller.status.duration, ' seconds )')
+            ' (', str(datetime.timedelta(seconds=cast.media_controller.status.duration)), ')')
     while(cast.media_controller.is_playing or 
         cast.media_controller.is_paused):
         time.sleep(5)
@@ -117,7 +118,7 @@ def main():
                     break
 
                 for video in listOfFiles:
-                    print("Starting:", video)
+                    print("\n\nStarting:", video, "\n")
                     url = createUrl(baseurl, dirname, video)
 
                     playVideo(cast, url)
