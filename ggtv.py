@@ -20,16 +20,20 @@ def createUrl(baseurl, dirname, video):
     return baseurl + urllib.parse.quote(video[len(dirname):], safe='/')
 
 def findChromecast(receiver):
-    print('Searching for chromecast:', receiver)
-    services, browser = pychromecast.discovery.discover_chromecasts()
-    pychromecast.discovery.stop_discovery(browser)
-    chromecasts, browser = pychromecast.get_chromecasts()
     cast = None
-    print('Found chromecasts:')
-    for cc in chromecasts:
-        print('  ', cc.device.friendly_name)
-        if cc.device.friendly_name == receiver:
-            cast = cc
+    
+    while cast == None:
+        print('Searching for chromecast:', receiver)
+        services, browser = pychromecast.discovery.discover_chromecasts()
+        pychromecast.discovery.stop_discovery(browser)
+        chromecasts, browser = pychromecast.get_chromecasts()
+        print('Found chromecasts:')
+        for cc in chromecasts:
+            print('  ', cc.device.friendly_name)
+            if cc.device.friendly_name == receiver:
+                cast = cc
+        if cast == None:
+            time.sleep(15)
     return cast
 
 def findFreePort():
@@ -85,14 +89,10 @@ def main():
     parser.add_argument('-r', '--receiver', 
                         help='Specifies the Chromecast receiver. (required)', 
                         required=True)
-    parser.add_argument('--forever', 
-                        help='Continuously loop, re-searching for the Chromecast if it disappears.',
-                        action='store_true')
     args = parser.parse_args()
 
     dirname = os.path.join(args.directory, '')
     receiver = args.receiver
-    forever = args.forever
 
     ip = findHostname()
     port = findFreePort()
@@ -106,29 +106,29 @@ def main():
     
     while True:
         cast = findChromecast(receiver)
-        if cast is not None:
-            cast.wait()
-            print("Using Chromecast:", cast.device.friendly_name)
 
-            while True:
-                listOfFiles = getListOfFiles(dirname)
+        print("Using Chromecast:", cast.device.friendly_name)
 
-                if len(listOfFiles) == 0:
-                    print('No files to stream.')
-                    break
+        while True:
+            listOfFiles = getListOfFiles(dirname)
 
-                for video in listOfFiles:
-                    print("\n\nStarting:", video, "\n")
-                    url = createUrl(baseurl, dirname, video)
+            if len(listOfFiles) == 0:
+                print('No files to stream.')
+                break
 
+            for video in listOfFiles:
+                print("\n\nStarting:", video, "\n")
+                url = createUrl(baseurl, dirname, video)
+
+                try:
                     playVideo(cast, url)
-        else:
-            print('Could not find chromecast', receiver)
+                except:
+                    print("\n\nReconnecting.")
+                    cast = findChromecast(receiver)
+                    cast.wait()
+                    
+        time.sleep(15)
 
-        if forever:
-            time.sleep(15)
-        else:
-            break
 
 if __name__ == '__main__':
     main()
