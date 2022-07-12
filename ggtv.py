@@ -1,17 +1,12 @@
 #!/usr/bin/python3
 
 import argparse
-import http.server
 import os
 import pychromecast
 import random
-import socketserver
-import threading
 import time
 import urllib.parse
-import socket
 import datetime
-from contextlib import closing
 
 def createBaseUrl(ip, port):
     return 'http://' + ip + ':' + str(port) + '/'
@@ -24,23 +19,15 @@ def findChromecast(receiver):
     
     while cast == None:
         print('Searching for chromecast:', receiver)
-        services, browser = pychromecast.discovery.discover_chromecasts()
-        pychromecast.discovery.stop_discovery(browser)
-        chromecasts, browser = pychromecast.get_chromecasts()
-        print('Found chromecasts:')
-        for cc in chromecasts:
-            print('  ', cc.device.friendly_name)
-            if cc.device.friendly_name == receiver:
-                cast = cc
-        if cast == None:
-            time.sleep(15)
-    return cast
+        chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[receiver])
+        if not chromecasts or len(chromecasts) != 1:
+            print(f'No chromecast with name "{receiver}" discovered')
 
-def findFreePort():
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(('', 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
+        cast = chromecasts[0]
+
+    # Start socket client's worker thread and wait for initial status update
+    cast.wait()
+    return cast
 
 def findHostname():
     return os.popen("hostname -I | cut -d' ' -f1").read().strip()
@@ -70,15 +57,7 @@ def playVideo(cast, url):
             ' (', str(datetime.timedelta(seconds=cast.media_controller.status.duration)), ')')
     while(cast.media_controller.is_playing or 
         cast.media_controller.is_paused):
-        time.sleep(5)
-
-def startServer(dirname, port):
-    os.chdir(dirname)
-    Handler = http.server.SimpleHTTPRequestHandler
-
-    with socketserver.TCPServer(('', port), Handler) as httpd:
-        print("Starting HTTP server on port", port)
-        httpd.serve_forever()
+        time.sleep(15)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -95,19 +74,14 @@ def main():
     receiver = args.receiver
 
     ip = findHostname()
-    port = findFreePort()
+    port = 5080
     baseurl = createBaseUrl(ip, port)
 
-    daemon = threading.Thread(name='daemon_server', 
-                              target=startServer, 
-                              daemon=True, 
-                              args=(dirname, port))
-    daemon.start()
-    
+   
     while True:
         cast = findChromecast(receiver)
 
-        print("Using Chromecast:", cast.device.friendly_name)
+        print("Using Chromecast:", cast.name)
 
         while True:
             listOfFiles = getListOfFiles(dirname)
@@ -127,7 +101,7 @@ def main():
                     cast = findChromecast(receiver)
                     cast.wait()
                     
-        time.sleep(15)
+        time.sleep(30)
 
 
 if __name__ == '__main__':
