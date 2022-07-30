@@ -22,8 +22,8 @@ def findChromecast(receiver):
         chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[receiver])
         if not chromecasts or len(chromecasts) != 1:
             print(f'No chromecast with name "{receiver}" discovered')
-
-        cast = chromecasts[0]
+        else:
+            cast = chromecasts[0]
 
     # Start socket client's worker thread and wait for initial status update
     cast.wait()
