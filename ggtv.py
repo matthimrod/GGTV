@@ -4,15 +4,14 @@ import argparse
 import os
 import pychromecast
 import random
+import re
+import requests
 import time
 import urllib.parse
 import datetime
 
 def createBaseUrl(ip, port):
     return 'http://' + ip + ':' + str(port) + '/'
-
-def createUrl(baseurl, dirname, video):
-    return baseurl + urllib.parse.quote(video[len(dirname):], safe='/')
 
 def findChromecast(receiver):
     cast = None
@@ -32,17 +31,23 @@ def findChromecast(receiver):
 def findHostname():
     return os.popen("hostname -I | cut -d' ' -f1").read().strip()
 
-def getListOfFiles(dirname):
-    print('Gathering list of files...', end =' ')
-
-    listOfFiles = list()
-    for (dirpath, dirnames, filenames) in os.walk(dirname):
-        listOfFiles += [os.path.join(dirpath, file) for file in filenames]
-    random.shuffle(listOfFiles)
-
-    print('found', len(listOfFiles), 'files.')
-
-    return listOfFiles
+def getListOfFiles(base_url):
+    links = [ ]
+    
+    result = requests.head(base_url)
+    
+    if result.status_code == 200 and (result.headers.get('Content-Type') == 'text/html'):
+        result = requests.get(base_url)
+        
+        if result.status_code == 200:
+            for line in result.text.splitlines():
+                match = re.search('href="([^"]*)"', line)
+                if match and match.group(1) != '../':
+                    for link in getListOfFiles(base_url + match.group(1)):
+                        links.append( link )
+            return links
+    else:
+        return [ base_url ]
 
 def playVideo(cast, url):
     time.sleep(2)
@@ -61,16 +66,11 @@ def playVideo(cast, url):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--directory', 
-                        help='''Specifies the directory to stream.
-                        Default is the current directory.''', 
-                        default='.')
     parser.add_argument('-r', '--receiver', 
                         help='Specifies the Chromecast receiver. (required)', 
                         required=True)
     args = parser.parse_args()
 
-    dirname = os.path.join(args.directory, '')
     receiver = args.receiver
 
     ip = findHostname()
@@ -84,18 +84,18 @@ def main():
         print("Using Chromecast:", cast.name)
 
         while True:
-            listOfFiles = getListOfFiles(dirname)
+            print("Creating video list.")
+            listOfFiles = getListOfFiles(baseurl)
 
             if len(listOfFiles) == 0:
                 print('No files to stream.')
                 break
 
             for video in listOfFiles:
-                print("\n\nStarting:", video, "\n")
-                url = createUrl(baseurl, dirname, video)
+                print("\n\nStarting:", video)
 
                 try:
-                    playVideo(cast, url)
+                    playVideo(cast, video)
                 except:
                     print("\n\nReconnecting.")
                     cast = findChromecast(receiver)
