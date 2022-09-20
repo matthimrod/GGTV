@@ -1,19 +1,19 @@
 #!/usr/bin/python3
 
 import argparse
+import datetime
 import os
+import pidfile
 import pychromecast
 import random
 import re
 import requests
 import time
-import urllib.parse
-import datetime
 
-def createBaseUrl(ip, port):
+def create_base_url(ip, port):
     return 'http://' + ip + ':' + str(port) + '/'
 
-def findChromecast(receiver):
+def find_chromecast(receiver):
     cast = None
     
     while cast == None:
@@ -28,10 +28,10 @@ def findChromecast(receiver):
     cast.wait()
     return cast
 
-def findHostname():
+def get_hostname():
     return os.popen("hostname -I | cut -d' ' -f1").read().strip()
 
-def getListOfFiles(base_url):
+def get_list_of_files(base_url):
     links = [ ]
     
     result = requests.head(base_url)
@@ -43,13 +43,13 @@ def getListOfFiles(base_url):
             for line in result.text.splitlines():
                 match = re.search('href="([^"]*)"', line)
                 if match and match.group(1) != '../':
-                    for link in getListOfFiles(base_url + match.group(1)):
+                    for link in get_list_of_files(base_url + match.group(1)):
                         links.append( link )
             return links
     else:
         return [ base_url ]
 
-def playVideo(cast, url):
+def play_video(cast, url):
     time.sleep(2)
 
     print("Sending URL:", url)
@@ -73,36 +73,43 @@ def main():
 
     receiver = args.receiver
 
-    ip = findHostname()
+    ip = get_hostname()
     port = 5080
-    baseurl = createBaseUrl(ip, port)
+    baseurl = create_base_url(ip, port)
 
    
     while True:
-        cast = findChromecast(receiver)
+        cast = find_chromecast(receiver)
 
         print("Using Chromecast:", cast.name)
 
         while True:
             print("Creating video list.")
-            listOfFiles = getListOfFiles(baseurl)
+            list_of_files = get_list_of_files(baseurl)
+            random.shuffle(list_of_files)
 
-            if len(listOfFiles) == 0:
+            if len(list_of_files) == 0:
                 print('No files to stream.')
                 break
 
-            for video in listOfFiles:
+            for video in list_of_files:
                 print("\n\nStarting:", video)
 
                 try:
-                    playVideo(cast, video)
+                    play_video(cast, video)
                 except:
                     print("\n\nReconnecting.")
-                    cast = findChromecast(receiver)
+                    cast = find_chromecast(receiver)
                     cast.wait()
                     
         time.sleep(30)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        pid_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.pid')
+        with pidfile.PIDFile(pid_file):
+            main()
+    except pidfile.AlreadyRunningError:
+        print("GGTV is already running. :)")
+
