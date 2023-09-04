@@ -1,24 +1,23 @@
 #!/usr/bin/python3
 
 import argparse
+import json
 import os
 import pychromecast
-import random
 import re
 import requests
+import sys
 import time
-import urllib.parse
 import datetime
 
-def createBaseUrl(ip, port):
-    return 'http://' + ip + ':' + str(port) + '/'
 
 def findChromecast(receiver):
     cast = None
-    
+
     while cast == None:
         print('Searching for chromecast:', receiver)
-        chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[receiver])
+        chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[
+                                                                   receiver])
         if not chromecasts or len(chromecasts) != 1:
             print(f'No chromecast with name "{receiver}" discovered')
         else:
@@ -28,26 +27,25 @@ def findChromecast(receiver):
     cast.wait()
     return cast
 
-def findHostname():
-    return os.popen("hostname -I | cut -d' ' -f1").read().strip()
 
 def getListOfFiles(base_url):
-    links = [ ]
-    
+    links = []
+
     result = requests.head(base_url)
-    
+
     if result.status_code == 200 and (result.headers.get('Content-Type') == 'text/html'):
         result = requests.get(base_url)
-        
+
         if result.status_code == 200:
             for line in result.text.splitlines():
                 match = re.search('href="([^"]*)"', line)
                 if match and match.group(1) != '../':
                     for link in getListOfFiles(base_url + match.group(1)):
-                        links.append( link )
+                        links.append(link)
             return links
     else:
-        return [ base_url ]
+        return [base_url]
+
 
 def playVideo(cast, url):
     time.sleep(2)
@@ -59,25 +57,30 @@ def playVideo(cast, url):
     cast.media_controller.block_until_active(15)
     cast.media_controller.update_status()
     print('Playing', cast.media_controller.status.content_id,
-            ' (', str(datetime.timedelta(seconds=cast.media_controller.status.duration)), ')')
-    while(cast.media_controller.is_playing or 
-        cast.media_controller.is_paused):
+          ' (', str(datetime.timedelta(seconds=cast.media_controller.status.duration)), ')')
+    while (cast.media_controller.is_playing or
+           cast.media_controller.is_paused):
         time.sleep(15)
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--receiver', 
-                        help='Specifies the Chromecast receiver. (required)', 
+    parser.add_argument('-c', '--config',
+                        help='Specifies the config.json file.',
+                        required=False,
+                        default=os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),
+                                             'config.json'))
+    parser.add_argument('-r', '--receiver',
+                        help='Specifies the Chromecast receiver. (required)',
                         required=True)
     args = parser.parse_args()
 
     receiver = args.receiver
 
-    ip = findHostname()
-    port = 5080
-    baseurl = createBaseUrl(ip, port)
+    with open(args.config, 'r') as config_file:
+        config = json.load(config_file)
 
-   
+
     while True:
         cast = findChromecast(receiver)
 
@@ -85,7 +88,7 @@ def main():
 
         while True:
             print("Creating video list.")
-            listOfFiles = getListOfFiles(baseurl)
+            listOfFiles = getListOfFiles(config.get('base_url', 'http://172.16.1.35:5080'))
 
             if len(listOfFiles) == 0:
                 print('No files to stream.')
@@ -100,7 +103,7 @@ def main():
                     print("\n\nReconnecting.")
                     cast = findChromecast(receiver)
                     cast.wait()
-                    
+
         time.sleep(30)
 
 
