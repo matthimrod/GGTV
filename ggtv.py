@@ -85,6 +85,8 @@ def main():
     log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.name = 'GGTV'
 
     console_log_handler = logging.StreamHandler()
     console_log_handler.setLevel(logging.INFO)
@@ -116,7 +118,7 @@ def main():
                 break
 
             for video in list_of_files:
-                logger.info("\n\nStarting: %s", video)
+                logger.info("Starting: %s", video)
                 play_video(cast, video)
 
         time.sleep(30)
