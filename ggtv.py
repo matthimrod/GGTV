@@ -17,7 +17,7 @@ from pychromecast import Chromecast
 
 
 def find_chromecast(device_name: str) -> Chromecast:
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     cast = None
 
     while not cast:
@@ -37,7 +37,7 @@ def find_chromecast(device_name: str) -> Chromecast:
 
 
 def get_list_of_files(base_url: str) -> list[str]:
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
 
     result = requests.head(base_url)
     if result.ok and result.headers.get('Content-Type') != 'text/html':
@@ -58,7 +58,7 @@ def get_list_of_files(base_url: str) -> list[str]:
 
 
 def play_video(cast: Chromecast, url: str) -> None:
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     time.sleep(2)
 
     logger.info("Sending URL: %s", url)
@@ -87,9 +87,8 @@ def main():
 
     log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    logger.name = 'GGTV'
 
     console_log_handler = logging.StreamHandler()
     console_log_handler.setLevel(logging.INFO)
