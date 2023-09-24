@@ -4,6 +4,8 @@ import argparse
 import json
 import logging
 import os
+import posixpath
+
 import pychromecast
 import re
 import requests
@@ -43,7 +45,7 @@ def get_list_of_files(base_url: str) -> list[str]:
         for line in result.text.splitlines():
             match = re.search('href="([^"]*)"', line)
             if match and match.group(1) != '../':
-                for link in get_list_of_files(base_url + match.group(1)):
+                for link in get_list_of_files(posixpath.join(base_url, match.group(1))):
                     links.append(link)
         return links
     logger.error('Unable to build playlist.')
