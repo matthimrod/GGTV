@@ -24,7 +24,11 @@ def find_chromecast(device_name: str) -> Chromecast:
         logger.info('Searching for chromecast: %s', device_name)
         devices, _ = pychromecast.get_listed_chromecasts(friendly_names=[device_name])
         if devices and len(devices) == 1:
-            logger.info('Found device: %s', devices[0].model_name)
+            logger.info('Found device Name: %s', devices[0].cast_info.friendly_name)
+            logger.info('Found device Model: %s %s',
+                        devices[0].cast_info.manufacturer, devices[0].cast_info.model_name)
+            logger.info('Found device Host: %s', devices[0].cast_info.host)
+            logger.info('Found device UUID: %s', devices[0].cast_info.uuid)
             cast = devices[0]
 
     # Start socket client's worker thread and wait for initial status update
@@ -108,7 +112,8 @@ def main():
     while True:
         cast = find_chromecast(receiver)
 
-        logger.info("Using Chromecast: %s (%s)", cast.name, cast.model_name)
+        logger.info("Using Chromecast: %s (%s %s/%s)", cast.cast_info.friendly_name,
+                    cast.cast_info.manufacturer, cast.cast_info.model_name, cast.cast_info.host)
         while True:
             logger.info("Creating video list.")
             list_of_files = get_list_of_files(config.get('base_url', 'http://172.16.1.35:5080'))
