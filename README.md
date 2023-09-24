@@ -7,8 +7,6 @@ usage: ggtv.py [-h] [-d DIRECTORY] -r RECEIVER
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d DIRECTORY, --directory DIRECTORY
-                        Specifies the directory to stream. Default is the current directory.
   -r RECEIVER, --receiver RECEIVER
                         Specifies the Chromecast receiver. (required)
   --forever             Continuously loop, re-searching for the Chromecast if it disappears.
