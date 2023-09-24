@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import logging
 import os
 import pychromecast
 import re
@@ -10,56 +11,59 @@ import sys
 import time
 import datetime
 
+from pychromecast import Chromecast
 
-def findChromecast(receiver):
+
+def find_chromecast(device_name: str) -> Chromecast:
+    logger = logging.getLogger(__name__)
     cast = None
 
-    while cast == None:
-        print('Searching for chromecast:', receiver)
-        chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[
-                                                                   receiver])
-        if not chromecasts or len(chromecasts) != 1:
-            print(f'No chromecast with name "{receiver}" discovered')
-        else:
-            cast = chromecasts[0]
+    while not cast:
+        logger.info('Searching for chromecast: %s', device_name)
+        devices, _ = pychromecast.get_listed_chromecasts(friendly_names=[device_name])
+        if devices and len(devices) == 1:
+            logger.info('Found device: %s', devices[0].model_name)
+            cast = devices[0]
 
     # Start socket client's worker thread and wait for initial status update
     cast.wait()
     return cast
 
 
-def getListOfFiles(base_url):
+def get_list_of_files(base_url: str) -> list[str]:
+    logger = logging.getLogger(__name__)
     links = []
 
     result = requests.head(base_url)
-
-    if result.status_code == 200 and (result.headers.get('Content-Type') == 'text/html'):
-        result = requests.get(base_url)
-
-        if result.status_code == 200:
-            for line in result.text.splitlines():
-                match = re.search('href="([^"]*)"', line)
-                if match and match.group(1) != '../':
-                    for link in getListOfFiles(base_url + match.group(1)):
-                        links.append(link)
-            return links
-    else:
+    if result.ok and result.headers.get('Content-Type') != 'text/html':
         return [base_url]
 
+    result = requests.get(base_url)
+    if result.ok:
+        for line in result.text.splitlines():
+            match = re.search('href="([^"]*)"', line)
+            if match and match.group(1) != '../':
+                for link in get_list_of_files(base_url + match.group(1)):
+                    links.append(link)
+        return links
+    logger.error('Unable to build playlist.')
+    raise RuntimeError('Unable to build playlist.')
 
-def playVideo(cast, url):
+
+def play_video(cast: Chromecast, url: str) -> None:
+    logger = logging.getLogger(__name__)
     time.sleep(2)
 
-    print("Sending URL:", url)
+    logger.info("Sending URL: %s", url)
     cast.media_controller.play_media(url, 'video/mp4')
     time.sleep(10)
 
     cast.media_controller.block_until_active(15)
     cast.media_controller.update_status()
-    print('Playing', cast.media_controller.status.content_id,
-          ' (', str(datetime.timedelta(seconds=cast.media_controller.status.duration)), ')')
-    while (cast.media_controller.is_playing or
-           cast.media_controller.is_paused):
+    logger.info('Playing %s (%s)',
+                cast.media_controller.status.content_id,
+                str(datetime.timedelta(seconds=cast.media_controller.status.duration)))
+    while cast.media_controller.is_playing or cast.media_controller.is_paused:
         time.sleep(15)
 
 
@@ -75,34 +79,40 @@ def main():
                         required=True)
     args = parser.parse_args()
 
+    log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    logger = logging.getLogger(__name__)
+
+    console_log_handler = logging.StreamHandler()
+    console_log_handler.setLevel(logging.INFO)
+    console_log_handler.setFormatter(log_formatter)
+    logger.addHandler(console_log_handler)
+
+    log_file_handler = logging.FileHandler('ggtv.log', encoding='utf-8')
+    log_file_handler.setLevel(logging.INFO)
+    log_file_handler.setFormatter(log_formatter)
+    logger.addHandler(log_file_handler)
+
     receiver = args.receiver
 
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
-
     while True:
-        cast = findChromecast(receiver)
+        cast = find_chromecast(receiver)
 
-        print("Using Chromecast:", cast.name)
-
+        logger.info("Using Chromecast: %s (%s)", cast.name, cast.model_name)
         while True:
-            print("Creating video list.")
-            listOfFiles = getListOfFiles(config.get('base_url', 'http://172.16.1.35:5080'))
+            logger.info("Creating video list.")
+            list_of_files = get_list_of_files(config.get('base_url', 'http://172.16.1.35:5080'))
 
-            if len(listOfFiles) == 0:
-                print('No files to stream.')
+            if not list_of_files:
+                logger.info('No files to stream.')
                 break
 
-            for video in listOfFiles:
-                print("\n\nStarting:", video)
-
-                try:
-                    playVideo(cast, video)
-                except:
-                    print("\n\nReconnecting.")
-                    cast = findChromecast(receiver)
-                    cast.wait()
+            for video in list_of_files:
+                logger.info("\n\nStarting: %s", video)
+                play_video(cast, video)
 
         time.sleep(30)
 
