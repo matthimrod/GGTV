@@ -76,7 +76,7 @@ def main():
                         help='Specifies the config.json file.',
                         required=False,
                         default=os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),
-                                             'config.json'))
+                                             'ggtv.json'))
     parser.add_argument('-r', '--receiver',
                         help='Specifies the Chromecast receiver. (required)',
                         required=True)
@@ -91,13 +91,15 @@ def main():
     console_log_handler.setFormatter(log_formatter)
     logger.addHandler(console_log_handler)
 
-    log_file_handler = logging.FileHandler('ggtv.log', encoding='utf-8')
+    log_file_handler = logging.FileHandler(
+        os.path.join(os.path.dirname(
+            os.path.abspath(sys.argv[0])), 'ggtv.log'), encoding='utf-8')
     log_file_handler.setLevel(logging.INFO)
     log_file_handler.setFormatter(log_formatter)
     logger.addHandler(log_file_handler)
+    logger.info('Starting.')
 
     receiver = args.receiver
-
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
