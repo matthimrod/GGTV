@@ -38,14 +38,14 @@ def find_chromecast(device_name: str) -> Chromecast:
 
 def get_list_of_files(base_url: str) -> list[str]:
     logger = logging.getLogger(__name__)
-    logger.info('Building URL list: %s', base_url)
-    links = []
 
     result = requests.head(base_url)
     if result.ok and result.headers.get('Content-Type') != 'text/html':
         return [base_url]
 
+    links = []
     result = requests.get(base_url)
+    logger.info('Building URL list: %s', base_url)
     if result.ok:
         for line in result.text.splitlines():
             match = re.search('href="([^"]*)"', line)
@@ -67,8 +67,7 @@ def play_video(cast: Chromecast, url: str) -> None:
 
     cast.media_controller.block_until_active(15)
     cast.media_controller.update_status()
-    logger.info('Playing %s (%s)',
-                cast.media_controller.status.content_id,
+    logger.info('Playing video (length: %s)',
                 str(datetime.timedelta(seconds=cast.media_controller.status.duration)))
     while cast.media_controller.is_playing or cast.media_controller.is_paused:
         time.sleep(15)
@@ -119,14 +118,11 @@ def main():
             list_of_files = get_list_of_files(config.get('base_url', 'http://172.16.1.35:5080'))
 
             if not list_of_files:
-                logger.info('No files to stream.')
-                break
+                logger.error('No files to stream.')
+                exit('No files to stream.')
 
             for video in list_of_files:
-                logger.info("Starting: %s", video)
                 play_video(cast, video)
-
-        time.sleep(30)
 
 
 if __name__ == '__main__':
