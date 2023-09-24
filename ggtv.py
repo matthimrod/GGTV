@@ -34,6 +34,7 @@ def find_chromecast(device_name: str) -> Chromecast:
 
 def get_list_of_files(base_url: str) -> list[str]:
     logger = logging.getLogger(__name__)
+    logger.info('Building URL list: %s', base_url)
     links = []
 
     result = requests.head(base_url)
