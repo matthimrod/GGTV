@@ -130,10 +130,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        pid_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.pid')
-        with pidfile.PIDFile(pid_file):
-            main()
-    except pidfile.AlreadyRunningError:
-        print("GGTV is already running. :)")
-
+    main()
