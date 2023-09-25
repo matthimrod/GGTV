@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import posixpath
+from random import shuffle
 
 import pychromecast
 import re
@@ -107,21 +108,22 @@ def main():
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
+    logger.info("Creating video list.")
+    list_of_files = get_list_of_files(config.get('base_url', 'http://172.16.1.35:5080'))
+
+    if not list_of_files:
+        logger.error('No files to stream.')
+        exit('No files to stream.')
+
+    logger.info("Searching for cast device.")
+    cast = find_chromecast(receiver)
+    logger.info("Using device: %s %s (%s %s)", cast.cast_info.friendly_name,
+                cast.cast_info.host, cast.cast_info.manufacturer, cast.cast_info.model_name)
+
     while True:
-        cast = find_chromecast(receiver)
-
-        logger.info("Using Chromecast: %s (%s %s/%s)", cast.cast_info.friendly_name,
-                    cast.cast_info.manufacturer, cast.cast_info.model_name, cast.cast_info.host)
-        while True:
-            logger.info("Creating video list.")
-            list_of_files = get_list_of_files(config.get('base_url', 'http://172.16.1.35:5080'))
-
-            if not list_of_files:
-                logger.error('No files to stream.')
-                exit('No files to stream.')
-
-            for video in list_of_files:
-                play_video(cast, video)
+        shuffle(list_of_files)
+        for video in list_of_files:
+            play_video(cast, video)
 
 
 if __name__ == '__main__':
