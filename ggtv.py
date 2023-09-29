@@ -86,22 +86,16 @@ def main():
                         required=True)
     args = parser.parse_args()
 
-    log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(handlers=[logging.StreamHandler(sys.stdout),
+                                  logging.FileHandler(
+                                      os.path.join(os.path.dirname(
+                                          os.path.abspath(sys.argv[0])), 'ggtv.log')],
+                        encoding='utf-8',
+                        level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S'))
 
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    console_log_handler = logging.StreamHandler()
-    console_log_handler.setLevel(logging.INFO)
-    console_log_handler.setFormatter(log_formatter)
-    logger.addHandler(console_log_handler)
-
-    log_file_handler = logging.FileHandler(
-        os.path.join(os.path.dirname(
-            os.path.abspath(sys.argv[0])), 'ggtv.log'), encoding='utf-8')
-    log_file_handler.setLevel(logging.INFO)
-    log_file_handler.setFormatter(log_formatter)
-    logger.addHandler(log_file_handler)
     logger.info('Starting.')
 
     receiver = args.receiver
