@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import posixpath
+import urllib.parse
 from random import shuffle
 
 import pychromecast
@@ -60,18 +61,28 @@ def get_list_of_files(base_url: str) -> list[str]:
 
 def play_video(cast: Chromecast, url: str) -> None:
     logger = logging.getLogger()
-    time.sleep(2)
 
+    cast.wait()
     logger.info("Sending URL: %s", url)
-    cast.media_controller.play_media(url, 'video/mp4')
-    time.sleep(10)
+    cast.media_controller.play_media(url, 'video/mp4',
+                                     title=urllib.parse.unquote(posixpath.basename(url)))
 
+    logger.info("Blocking until active (or 15 seconds)")
     cast.media_controller.block_until_active(15)
     cast.media_controller.update_status()
-    logger.info('Playing video (length: %s)',
-                str(datetime.timedelta(seconds=cast.media_controller.status.duration)))
+
+    last_status = ""
+    status = ""
+    logger.info("Looping while playing")
     while cast.media_controller.is_playing or cast.media_controller.is_paused:
-        time.sleep(15)
+        while status == last_status:
+            cast.media_controller.update_status()
+            if cast.media_controller.status:
+                status = cast.media_controller.status.player_state
+            time.sleep(20)
+        title = cast.media_controller.title
+        logger.info('State: %s  Title: %s',status, title)
+        last_status = status
 
 
 def main():
