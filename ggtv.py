@@ -1,19 +1,17 @@
 #!/usr/bin/python3
 
 import argparse
+import datetime
 import json
 import logging
 import os
 import posixpath
+import re
+import sys
 from random import shuffle
 
 import pychromecast
-import re
 import requests
-import sys
-import time
-import datetime
-
 from pychromecast import Chromecast
 
 
@@ -58,20 +56,26 @@ def get_list_of_files(base_url: str) -> list[str]:
     raise RuntimeError('Unable to build playlist.')
 
 
-def play_video(cast: Chromecast, url: str) -> None:
+def play_queue(cast: Chromecast, urls: list[str]) -> None:
     logger = logging.getLogger()
-    time.sleep(2)
 
-    logger.info("Sending URL: %s", url)
-    cast.media_controller.play_media(url, 'video/mp4')
-    time.sleep(10)
+    for url in urls:
+        logger.debug('Waiting for Chromecast to be ready.')
+        cast.wait()
+        logger.info("Enqueueing URL: %s", url)
+        title = posixpath.basename(url)
+        cast.media_controller.play_media(url, 'video/mp4', enqueue=True, title=title)
 
-    cast.media_controller.block_until_active(15)
-    cast.media_controller.update_status()
-    logger.info('Playing video (length: %s)',
-                str(datetime.timedelta(seconds=cast.media_controller.status.duration)))
-    while cast.media_controller.is_playing or cast.media_controller.is_paused:
-        time.sleep(15)
+    last_status = ""
+    status = ""
+    while not cast.is_idle:
+        while status == last_status:
+            cast.media_controller.update_status()
+            status = cast.media_controller.player_state
+        title = cast.media_controller.title
+        duration = str(datetime.timedelta(seconds=cast.media_controller.status.duration))
+        logger.info('State: %s  Title: %s  (%s)', status, title, duration)
+        last_status = status
 
 
 def main():
@@ -89,11 +93,11 @@ def main():
     logging.basicConfig(handlers=[logging.StreamHandler(sys.stdout),
                                   logging.FileHandler(
                                       os.path.join(os.path.dirname(
-                                          os.path.abspath(sys.argv[0])), 'ggtv.log')],
+                                          os.path.abspath(sys.argv[0])), 'ggtv.log'))],
                         encoding='utf-8',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S'))
+                        datefmt='%m/%d/%Y %H:%M:%S')
 
     logger = logging.getLogger()
     logger.info('Starting.')
@@ -116,8 +120,7 @@ def main():
 
     while True:
         shuffle(list_of_files)
-        for video in list_of_files:
-            play_video(cast, video)
+        play_queue(cast, list_of_files)
 
 
 if __name__ == '__main__':
