@@ -89,11 +89,11 @@ def main():
     logging.basicConfig(handlers=[logging.StreamHandler(sys.stdout),
                                   logging.FileHandler(
                                       os.path.join(os.path.dirname(
-                                          os.path.abspath(sys.argv[0])), 'ggtv.log')],
+                                          os.path.abspath(sys.argv[0])), 'ggtv.log'))],
                         encoding='utf-8',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S'))
+                        datefmt='%m/%d/%Y %H:%M:%S')
 
     logger = logging.getLogger()
     logger.info('Starting.')
