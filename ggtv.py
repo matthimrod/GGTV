@@ -74,7 +74,9 @@ def play_video(cast: Chromecast, url: str) -> None:
     last_status = ""
     status = ""
     logger.info("Looping while playing")
-    while cast.media_controller.is_playing or cast.media_controller.is_paused:
+    while (cast and cast.media_controller.status and
+           (cast.media_controller.status.player_is_playing or
+            cast.media_controller.status.player_is_paused)):
         while status == last_status:
             cast.media_controller.update_status()
             if cast.media_controller.status:
@@ -120,14 +122,16 @@ def main():
         logger.error('No files to stream.')
         exit('No files to stream.')
 
-    logger.info("Searching for cast device.")
-    cast = find_chromecast(receiver)
-    logger.info("Using device: %s %s (%s %s)", cast.cast_info.friendly_name,
-                cast.cast_info.host, cast.cast_info.manufacturer, cast.cast_info.model_name)
-
+    cast = None
     while True:
         shuffle(list_of_files)
         for video in list_of_files:
+            if not cast:
+                logger.info("Searching for cast device.")
+                cast = find_chromecast(receiver)
+                logger.info("Using device: %s %s (%s %s)",
+                            cast.cast_info.friendly_name, cast.cast_info.host,
+                            cast.cast_info.manufacturer, cast.cast_info.model_name)
             play_video(cast, video)
 
 
