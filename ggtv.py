@@ -68,7 +68,9 @@ def play_video(cast: Chromecast, url: str) -> None:
                                      title=urllib.parse.unquote(posixpath.basename(url)))
 
     logger.info("Blocking until active (or 15 seconds)")
+    time.sleep(1)
     cast.media_controller.block_until_active(15)
+    time.sleep(1)
     cast.media_controller.update_status()
 
     last_status = ""
